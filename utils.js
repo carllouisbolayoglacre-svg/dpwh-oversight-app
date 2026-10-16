@@ -5,11 +5,20 @@ const toRadians = (degrees) => {
 
 // Calculates distance in meters between two coordinates
 export const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const nLat1 = parseFloat(lat1);
+  const nLon1 = parseFloat(lon1);
+  const nLat2 = parseFloat(lat2);
+  const nLon2 = parseFloat(lon2);
+
+  if (isNaN(nLat1) || isNaN(nLon1) || isNaN(nLat2) || isNaN(nLon2)) {
+    return NaN;
+  }
+
   const R = 6371e3; // Earth's radius in meters
-  const phi1 = toRadians(lat1);
-  const phi2 = toRadians(lat2);
-  const deltaPhi = toRadians(lat2 - lat1);
-  const deltaLambda = toRadians(lon2 - lon1);
+  const phi1 = toRadians(nLat1);
+  const phi2 = toRadians(nLat2);
+  const deltaPhi = toRadians(nLat2 - nLat1);
+  const deltaLambda = toRadians(nLon2 - nLon1);
 
   const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
             Math.cos(phi1) * Math.cos(phi2) *
@@ -22,7 +31,65 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 // Validates if the capture is within the allowed geofence radius
 export const validateGeofence = (currentLat, currentLon, projectLat, projectLon, allowedRadius) => {
+  const radius = parseFloat(allowedRadius);
+  if (isNaN(radius) || radius <= 0) {
+    return false;
+  }
   const distance = calculateDistance(currentLat, currentLon, projectLat, projectLon);
-  console.log(`Distance from site: ${distance.toFixed(2)} meters`);
-  return distance <= allowedRadius;
+  if (isNaN(distance)) {
+    return false;
+  }
+  console.log(`Distance from site: ${distance.toFixed(2)} meters (Allowed: ${radius}m)`);
+  return distance <= radius;
+};
+
+/**
+ * Executes a native multipart/form-data upload using XMLHttpRequest.
+ * Bypasses Expo Winter fetch implementation which throws 'Unsupported FormDataPart implementation'
+ * when handling React Native { uri, name, type } file objects.
+ *
+ * @param {string} url - Target endpoint URL
+ * @param {FormData} formData - Multipart form data with file parts
+ * @param {number} [timeoutMs=60000] - Request timeout in milliseconds
+ * @returns {Promise<{status: number, data: any}>}
+ */
+export const uploadMultipartAsync = (url, formData, timeoutMs = 60000) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.timeout = timeoutMs;
+    xhr.setRequestHeader('Accept', 'application/json');
+
+    xhr.onload = () => {
+      let responseData = {};
+      try {
+        responseData = JSON.parse(xhr.responseText);
+      } catch (parseErr) {
+        responseData = { text: xhr.responseText };
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({
+          status: xhr.status,
+          data: responseData,
+        });
+      } else {
+        const message = responseData?.error || responseData?.message || `Server responded with status code ${xhr.status}`;
+        const err = new Error(message);
+        err.status = xhr.status;
+        err.data = responseData;
+        reject(err);
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network request failed. Could not reach server.'));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error('Network request timed out.'));
+    };
+
+    xhr.send(formData);
+  });
 };

@@ -1,117 +1,228 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Location from 'expo-location';
-import { validateGeofence } from './utils';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet, Platform, AppState } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LoginScreen from './screens/LoginScreen';
+import ProjectListScreen from './screens/ProjectListScreen';
+import ProjectMapScreen from './screens/ProjectMapScreen';
+import CameraScreen from './screens/CameraScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import PhotoGalleryScreen from './screens/PhotoGalleryScreen';
+import ReportFormScreen from './screens/ReportFormScreen';
+import { THEME } from './theme';
+import { initDatabase } from './services/offlineDatabase';
+import { startNetworkSyncWatcher, stopNetworkSyncWatcher } from './services/syncService';
 
-export default function App() {
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [locationPermission, setLocationPermission] = useState(null);
-  const cameraRef = useRef(null);
+// --- NAVIGATORS ---
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-  // Request Hardware Permissions on Startup
-  useEffect(() => {
-    (async () => {
-      const locStatus = await Location.requestForegroundPermissionsAsync();
-      setLocationPermission(locStatus.status === 'granted');
-    })();
-  }, []);
+// Utilitarian Rugged Bottom Tabs
+function MainTabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: THEME.colors.primary,
+          elevation: 4,
+          shadowOpacity: 0.2,
+        },
+        headerTitleStyle: {
+          color: '#FFFFFF',
+          fontWeight: '900',
+          fontSize: 18,
+          letterSpacing: 0.5,
+        },
+        tabBarActiveTintColor: THEME.colors.primary,
+        tabBarInactiveTintColor: THEME.colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '800',
+          marginBottom: 4,
+        },
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 2,
+          borderTopColor: THEME.colors.borderLight,
+          height: 64,
+          paddingTop: 6,
+        },
+        tabBarIcon: ({ color, size, focused }) => {
+          let iconName;
+          if (route.name === 'Projects') {
+            iconName = focused ? 'file-tray-full' : 'file-tray-full-outline';
+          } else if (route.name === 'SiteMap') {
+            iconName = focused ? 'map' : 'map-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'shield' : 'shield-outline';
+          }
+          return <Ionicons name={iconName} size={24} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="Projects" 
+        component={ProjectListScreen} 
+        options={{ 
+          title: 'Field Assignments',
+          headerTitle: 'DPWH FIELD OVERSIGHT',
+        }} 
+      />
+      <Tab.Screen 
+        name="SiteMap" 
+        component={ProjectMapScreen} 
+        options={{ 
+          title: 'Site Map',
+          headerTitle: 'GIS SITE & GEOFENCE MONITOR',
+        }} 
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ 
+          title: 'Inspector ID',
+          headerTitle: 'INSPECTOR CREDENTIALS',
+        }} 
+      />
+    </Tab.Navigator>
+  );
+}
 
-  if (!cameraPermission || locationPermission === null) {
-    return <View><Text>Requesting permissions...</Text></View>;
-  }
+// Navigation Root reacting to authentication state
+function NavigationRoot() {
+  const { userToken, isLoading } = useAuth();
 
-  if (!cameraPermission.granted || !locationPermission) {
+  if (isLoading) {
     return (
-      <View style={styles.container}>
-        <Text>Camera and GPS permissions are required for DPWH Inspections.</Text>
-        <TouchableOpacity onPress={requestCameraPermission} style={styles.btn}>
-          <Text style={styles.btnText}>Grant Permissions</Text>
-        </TouchableOpacity>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={THEME.colors.primary} />
       </View>
     );
   }
 
-  // The Live-Capture Function
-  const handleSecureCapture = async () => {
-    if (cameraRef.current) {
-      try {
-        // 1. Capture Image & GPS
-        const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest,
-        });
+  return (
+    <NavigationContainer>
+      <StatusBar style="light" backgroundColor={THEME.colors.primaryDark} />
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+          headerStyle: {
+            backgroundColor: THEME.colors.primary,
+          },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: {
+            fontWeight: '900',
+            fontSize: 18,
+            letterSpacing: 0.5,
+          },
+        }}
+      >
+        {userToken == null ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+            <Stack.Screen 
+              name="ProjectMap" 
+              component={ProjectMapScreen} 
+              options={{ 
+                headerShown: true,
+                title: 'Project Geofence Map',
+                headerBackTitle: 'Assignments',
+              }} 
+            />
+            <Stack.Screen 
+              name="Camera" 
+              component={CameraScreen} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="PhotoGallery" 
+              component={PhotoGalleryScreen} 
+              options={{ 
+                headerShown: false,
+              }} 
+            />
+            <Stack.Screen 
+              name="ReportForm" 
+              component={ReportFormScreen} 
+              options={{ 
+                headerShown: true,
+                title: 'Field Inspection Log',
+                headerBackTitle: 'Gallery',
+              }} 
+            />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
 
-        const currentLat = location.coords.latitude;
-        const currentLon = location.coords.longitude;
+// --- MAIN APP COMPONENT ---
+export default function App() {
+  useEffect(() => {
+    // 1. Initialize SQLite database & offline_reports table on app boot
+    initDatabase().catch((err) => {
+      console.error('[App] Failed to initialize SQLite offline database:', err);
+    });
 
-        // MOCK PROJECT DATA: Let's assume the project site is exactly where you are standing right now, 
-        // but offset slightly, with a 50-meter geofence_radius.
-        const TARGET_PROJECT_LAT = 14.5995; 
-        const TARGET_PROJECT_LON = 124.2386148;
-        const GEOFENCE_RADIUS = 50; // in meters
+    // 2. Start automatic network state sync watcher
+    startNetworkSyncWatcher((result) => {
+      console.log(`[App] Background sync completed. Synced: ${result?.synced || 0}, Remaining: ${result?.remaining || 0}`);
+    });
 
-        // 2. Validate Geofence
-        const isWithinGeofence = validateGeofence(
-          currentLat, currentLon, 
-          TARGET_PROJECT_LAT, TARGET_PROJECT_LON, 
-          GEOFENCE_RADIUS
-        );
-
-        if (!isWithinGeofence) {
-           Alert.alert("Submission Rejected", "You are outside the registered project geofence.");
-           return; // Stop the process
+    // 3. Configure Android Sticky Immersive Fullscreen Mode (hides navigation/home buttons)
+    let appStateSub = null;
+    if (Platform.OS === 'android') {
+      const applyImmersiveMode = async () => {
+        try {
+          await NavigationBar.setVisibilityAsync('hidden');
+          if (typeof NavigationBar.setBehaviorAsync === 'function') {
+            await NavigationBar.setBehaviorAsync('overlay-swipe');
+          }
+        } catch (navErr) {
+          console.warn('[App] Could not set NavigationBar visibility:', navErr);
         }
+      };
 
-        Alert.alert("Success", "Live image captured within geofence! Ready for hashing.");
-        console.log("Secure Image:", photo.uri);
+      applyImmersiveMode();
 
-      } catch (error) {
-        console.error("Capture Error:", error);
-      }
+      // Ensure navigation bar stays hidden when returning from background or screen unlock
+      appStateSub = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'active') {
+          applyImmersiveMode();
+        }
+      });
     }
-  };
+
+    return () => {
+      stopNetworkSyncWatcher();
+      appStateSub?.remove?.();
+    };
+  }, []);
 
   return (
-    <View style={styles.container}>
-      {/* The Camera fills the background using flex: 1 */}
-      <CameraView style={styles.camera} ref={cameraRef} facing="back" />
-      
-      {/* The UI Container floats on top at the bottom of the screen */}
-      <View style={styles.uiContainer}>
-        <TouchableOpacity style={styles.captureBtn} onPress={handleSecureCapture}>
-          <Text style={styles.btnText}>CAPTURE INFRASTRUCTURE</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <NavigationRoot />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
+  center: { 
     flex: 1, 
-    backgroundColor: 'black' 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: THEME.colors.background 
   },
-  camera: { 
-    flex: 1 // This forces the camera to fill the entire container
-  },
-  uiContainer: { 
-    position: 'absolute', 
-    bottom: 50,           // Pushes the button up from the bottom edge
-    width: '100%',        // Spans the full width of the screen
-    alignItems: 'center', // Centers the button horizontally
-    zIndex: 10            // Ensures the button sits above the camera view
-  },
-  captureBtn: { 
-    backgroundColor: '#003366', 
-    padding: 20, 
-    borderRadius: 10,
-    elevation: 5          // Adds a slight shadow on Android
-  },
-  btnText: { 
-    color: 'white', 
-    fontWeight: 'bold', 
-    fontSize: 16 
-  }
 });
-

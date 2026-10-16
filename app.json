@@ -7,18 +7,54 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dpwh.oversightapp"
     },
     "android": {
+      "package": "com.dpwh.oversightapp",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC7IhDtFlr9a85r7wSsG3xXf-c0-ll3MWA"
+        }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DPWH Oversight requires camera access to document construction progress."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "DPWH Oversight requires GPS location to verify inspections are conducted on-site."
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "hidden": true
+        }
+      ]
+    ]
   }
 }
