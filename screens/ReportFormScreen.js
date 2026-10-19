@@ -16,7 +16,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { API_URLS } from '../config';
 import { THEME } from '../theme';
-import { uploadMultipartAsync } from '../utils';
+import {
+  formatDecimal,
+  getApiErrorMessage,
+  getImageMimeType,
+  uploadMultipartAsync,
+} from '../utils';
 import { initDatabase, saveOfflineReport } from '../services/offlineDatabase';
 import { isDeviceOnlineAsync } from '../services/syncService';
 
@@ -34,7 +39,7 @@ const FIELD_ACTIVITY_TAGS = [
 
 export default function ReportFormScreen({ route, navigation }) {
   const { project, photoUri, photos: routePhotos, locationData: routeLocationData } = route.params || {};
-  const { userToken, inspectorName } = useAuth();
+  const { userToken, inspectorId, inspectorName } = useAuth();
   const networkState = useNetworkState();
   const isOnlineNow = Boolean(networkState.isConnected && networkState.isInternetReachable !== false);
 
@@ -135,7 +140,7 @@ export default function ReportFormScreen({ route, navigation }) {
 
     const reportPayload = {
       project_id: project.project_id,
-      inspector_id: userToken,
+      inspector_id: inspectorId,
       progress: numericProgress,
       description: description.trim(),
       photo_uri: serializedPhotoUris,
@@ -173,40 +178,48 @@ export default function ReportFormScreen({ route, navigation }) {
       return;
     }
 
-    // 3. ONLINE MODE: Execute multi-file FormData request with field name 'images'
+    // 3. ONLINE MODE: Send one report containing every captured photo.
     try {
       console.log(`[ReportFormScreen] Device is online. Transmitting batch of ${photos.length} photos to backend...`);
       const formData = new FormData();
       formData.append('project_id', String(project.project_id));
-      formData.append('inspector_id', String(userToken));
+      formData.append('inspector_id', String(inspectorId));
       formData.append('progress_percentage', numericProgress.toString());
       formData.append('accomplishment_description', description.trim());
-      formData.append('latitude', (primaryLocation.latitude || 0).toString());
-      formData.append('longitude', (primaryLocation.longitude || 0).toString());
-      formData.append('altitude', (primaryLocation.altitude || 0.0).toString());
-      formData.append('gps_accuracy', (primaryLocation.accuracy || 0.0).toString());
+      formData.append('latitude', formatDecimal(primaryLocation.latitude, 7));
+      formData.append('longitude', formatDecimal(primaryLocation.longitude, 7));
+      formData.append('altitude', formatDecimal(primaryLocation.altitude, 2));
+      formData.append('gps_accuracy', formatDecimal(primaryLocation.accuracy, 2));
       formData.append('geofence_status', primaryLocation.geofenceStatus || 'Inside');
       formData.append('geofence_distance', (primaryLocation.distance || 0.0).toString());
       formData.append('captured_at', primaryLocation.capturedAt || new Date().toISOString());
 
-      // Per-photo telemetry metadata serialized as JSON
-      formData.append('photos_metadata', JSON.stringify(photos));
+      // Keep each photo's GPS and capture time aligned with its uploaded file.
+      const photosMetadata = photos.map((photo) => {
+        const metadata = typeof photo === 'string' ? primaryLocation : photo;
+        return {
+          latitude: formatDecimal(metadata.latitude, 7),
+          longitude: formatDecimal(metadata.longitude, 7),
+          altitude: formatDecimal(metadata.altitude, 2),
+          accuracy: formatDecimal(metadata.accuracy, 2),
+          capturedAt: metadata.capturedAt || new Date().toISOString(),
+        };
+      });
+      formData.append('photos_metadata', JSON.stringify(photosMetadata));
 
-      // Append all photos under field name 'images'
-      photos.forEach((photoObj, index) => {
-        const uri = typeof photoObj === 'string' ? photoObj : photoObj.uri;
-        const filename = uri.split('/').pop() || `inspection_${Date.now()}_${index}.jpg`;
-        const extMatch = /\.(\w+)$/.exec(filename);
-        const mimeType = extMatch ? `image/${extMatch[1].toLowerCase()}` : 'image/jpeg';
-
-        formData.append('images', {
-          uri: uri,
-          name: filename,
-          type: mimeType,
-        });
+      photos.forEach((photo, index) => {
+        const uri = typeof photo === 'string' ? photo : photo.uri;
+        const filename = uri.split('/').pop() || `inspection_${Date.now()}_${index + 1}.jpg`;
+        const mimeType = getImageMimeType(filename);
+        formData.append('image_file', { uri, name: filename, type: mimeType });
       });
 
-      const uploadResult = await uploadMultipartAsync(API_URLS.UPLOAD, formData);
+      const uploadResult = await uploadMultipartAsync(
+        API_URLS.UPLOAD,
+        formData,
+        60000,
+        { Authorization: `Bearer ${userToken}` }
+      );
       const result = uploadResult.data || {};
 
       Alert.alert(
@@ -215,7 +228,18 @@ export default function ReportFormScreen({ route, navigation }) {
         [{ text: 'OK', onPress: () => navigation.popToTop() }]
       );
     } catch (error) {
-      console.warn('[ReportFormScreen] Online transmission failed, saving to offline queue:', error);
+      // HTTP errors mean the server was reached, so show its validation message.
+      // Only save offline when the device genuinely cannot reach the server.
+      if (error?.status) {
+        console.warn('[ReportFormScreen] Server rejected the report:', error.data || error);
+        Alert.alert(
+          'Submission Rejected',
+          getApiErrorMessage(error)
+        );
+        return;
+      }
+
+      console.warn('[ReportFormScreen] Network transmission failed, saving to offline queue:', error);
       // Seamless fallback: Save report locally if connection drops mid-flight
       try {
         await saveOfflineReport(reportPayload);

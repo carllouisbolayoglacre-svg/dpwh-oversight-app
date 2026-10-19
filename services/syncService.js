@@ -1,7 +1,8 @@
 import * as Network from 'expo-network';
 import * as FileSystem from 'expo-file-system/legacy';
 import { API_URLS } from '../config';
-import { uploadMultipartAsync } from '../utils';
+import { formatDecimal, getImageMimeType, uploadMultipartAsync } from '../utils';
+import * as SecureStore from 'expo-secure-store';
 import { 
   getUnsyncedReports, 
   deleteOfflineReport, 
@@ -137,32 +138,47 @@ export async function syncOfflineReports() {
       try {
         console.log(`[SyncService] Uploading offline report #${report.id} (${photoUris.length} photos) for project #${report.project_id}...`);
 
-        // 3. Transmit multipart inspection payload to Node.js backend using FormData
+        // 3. Transmit the multipart inspection payload to the Django API.
         const formData = new FormData();
         formData.append('project_id', String(report.project_id));
         formData.append('inspector_id', String(report.inspector_id));
         formData.append('progress_percentage', String(report.progress));
         formData.append('accomplishment_description', String(report.description));
-        formData.append('latitude', String(report.latitude || 0));
-        formData.append('longitude', String(report.longitude || 0));
-        formData.append('altitude', String(report.altitude || 0));
-        formData.append('gps_accuracy', String(report.accuracy || 0));
+        formData.append('latitude', formatDecimal(report.latitude, 7));
+        formData.append('longitude', formatDecimal(report.longitude, 7));
+        formData.append('altitude', formatDecimal(report.altitude, 2));
+        formData.append('gps_accuracy', formatDecimal(report.accuracy, 2));
         formData.append('geofence_status', String(report.geofence_status || 'Inside'));
         formData.append('geofence_distance', String(report.distance || 0));
         formData.append('captured_at', String(report.captured_at || new Date().toISOString()));
 
-        photoUris.forEach((uri, idx) => {
-          const filename = uri.split('/').pop() || `sync_${Date.now()}_${idx}.jpg`;
-          const extMatch = /\.(\w+)$/.exec(filename);
-          const mimeType = extMatch ? `image/${extMatch[1].toLowerCase()}` : 'image/jpeg';
-          formData.append('images', {
-            uri: uri,
-            name: filename,
-            type: mimeType,
-          });
+        // Older queued records store one shared GPS reading for the whole batch.
+        // Upload every persisted file under the same report request.
+        const photosMetadata = photoUris.map(() => ({
+          latitude: formatDecimal(report.latitude, 7),
+          longitude: formatDecimal(report.longitude, 7),
+          altitude: formatDecimal(report.altitude, 2),
+          accuracy: formatDecimal(report.accuracy, 2),
+          capturedAt: String(report.captured_at || new Date().toISOString()),
+        }));
+        formData.append('photos_metadata', JSON.stringify(photosMetadata));
+
+        photoUris.forEach((uri, index) => {
+          const filename = uri.split('/').pop() || `sync_${Date.now()}_${index + 1}.jpg`;
+          const mimeType = getImageMimeType(filename);
+          formData.append('image_file', { uri, name: filename, type: mimeType });
         });
 
-        const uploadResponse = await uploadMultipartAsync(API_URLS.UPLOAD, formData);
+        const token = await SecureStore.getItemAsync('inspector_token');
+        if (!token) {
+          throw new Error('Inspector session is missing. Please log in again before syncing.');
+        }
+        const uploadResponse = await uploadMultipartAsync(
+          API_URLS.UPLOAD,
+          formData,
+          60000,
+          { Authorization: `Bearer ${token}` }
+        );
 
         // 4. Validate HTTP response (201 Created or 200 OK)
         if (uploadResponse.status === 201 || uploadResponse.status === 200) {
@@ -175,10 +191,19 @@ export async function syncOfflineReports() {
           failedCount++;
         }
       } catch (uploadError) {
-        console.error(`[SyncService] Network error uploading report #${report.id}:`, uploadError);
+        const failureType = uploadError?.status ? 'Server rejection' : 'Network error';
+        console.error(
+          `[SyncService] ${failureType} uploading report #${report.id} to ${API_URLS.UPLOAD}:`,
+          uploadError?.data || uploadError
+        );
         await recordSyncFailure(report.id, uploadError?.message || 'Network error');
         failedCount++;
-        
+
+        // A rejected report should not prevent other queued reports from syncing.
+        if (uploadError?.status) {
+          continue;
+        }
+
         // Stop sequential upload on genuine network break
         break;
       }
