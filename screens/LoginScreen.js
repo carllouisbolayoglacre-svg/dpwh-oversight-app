@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { API_URLS } from '../config';
 import { THEME } from '../theme';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
 
   const [username, setUsername] = useState('');
@@ -72,6 +72,15 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="arrow-back" size={18} color={THEME.colors.primary} />
+            <Text style={styles.backButtonText}>PUBLIC PROJECTS</Text>
+          </TouchableOpacity>
+
           {/* Government / Department Field Emblem */}
           <View style={styles.badgeHeader}>
             <View style={styles.emblemContainer}>
@@ -179,6 +188,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 5,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  backButtonText: {
+    color: THEME.colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   badgeHeader: {
     alignItems: 'center',

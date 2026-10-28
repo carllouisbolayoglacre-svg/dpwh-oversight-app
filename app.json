@@ -54,7 +54,8 @@
           "enforceContrast": false,
           "hidden": true
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

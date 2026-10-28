@@ -9,6 +9,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginScreen from './screens/LoginScreen';
+import PublicBrowseScreen from './screens/PublicBrowseScreen';
+import PublicProjectDetailScreen from './screens/PublicProjectDetailScreen';
 import ProjectListScreen from './screens/ProjectListScreen';
 import ProjectMapScreen from './screens/ProjectMapScreen';
 import CameraScreen from './screens/CameraScreen';
@@ -125,7 +127,11 @@ function NavigationRoot() {
         }}
       >
         {userToken == null ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <>
+            <Stack.Screen name="PublicBrowse" component={PublicBrowseScreen} />
+            <Stack.Screen name="PublicProjectDetail" component={PublicProjectDetailScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="MainTabs" component={MainTabNavigator} />
