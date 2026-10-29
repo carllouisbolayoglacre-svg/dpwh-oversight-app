@@ -23,10 +23,8 @@ if (__DEV__) {
 export const API_URLS = {
   // Django endpoint containing the same approved data shown on the public web portal
   PUBLIC_PROJECTS: `${PUBLIC_PORTAL_BASE_URL}/public/api/public/projects/`,
-  // Django endpoint for authentication
-  LOGIN: `http://${LOCAL_IP}:8000/accounts/api/mobile-login/`,
-  // Node.js endpoint for fetching assignments
-  PROJECTS: `http://${LOCAL_IP}:5000/api/projects/`,
-  // Node.js endpoint for image uploads
-  UPLOAD: `http://${LOCAL_IP}:5000/api/upload-inspection/`,
+  // Authenticated inspector endpoints served by the Django application.
+  LOGIN: `${PUBLIC_PORTAL_BASE_URL}/verifications/api/mobile/login/`,
+  PROJECTS: `${PUBLIC_PORTAL_BASE_URL}/verifications/api/mobile/projects/`,
+  UPLOAD: `${PUBLIC_PORTAL_BASE_URL}/verifications/api/mobile/reports/submit/`,
 };

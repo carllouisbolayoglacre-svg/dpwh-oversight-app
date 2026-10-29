@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const AuthContext = createContext({
   userToken: null,
+  inspectorId: null,
   inspectorName: null,
   isLoading: true,
   signIn: async () => {},
@@ -11,16 +12,19 @@ export const AuthContext = createContext({
 
 export const AuthProvider = ({ children }) => {
   const [userToken, setUserToken] = useState(null);
+  const [inspectorId, setInspectorId] = useState(null);
   const [inspectorName, setInspectorName] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadStoredAuth = async () => {
       try {
+        const storedToken = await SecureStore.getItemAsync('inspector_token');
         const storedId = await SecureStore.getItemAsync('inspector_id');
         const storedName = await SecureStore.getItemAsync('inspector_name');
-        if (storedId) {
-          setUserToken(storedId);
+        if (storedToken && storedId) {
+          setUserToken(storedToken);
+          setInspectorId(storedId);
           setInspectorName(storedName || 'Inspector');
         }
       } catch (error) {
@@ -33,13 +37,16 @@ export const AuthProvider = ({ children }) => {
     loadStoredAuth();
   }, []);
 
-  const signIn = async (id, name) => {
+  const signIn = async (token, id, name) => {
     try {
       const stringId = String(id);
+      const safeToken = String(token);
       const safeName = name ? String(name) : 'Inspector';
+      await SecureStore.setItemAsync('inspector_token', safeToken);
       await SecureStore.setItemAsync('inspector_id', stringId);
       await SecureStore.setItemAsync('inspector_name', safeName);
-      setUserToken(stringId);
+      setUserToken(safeToken);
+      setInspectorId(stringId);
       setInspectorName(safeName);
     } catch (error) {
       console.error('Error saving credentials to SecureStore', error);
@@ -50,17 +57,19 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       await SecureStore.deleteItemAsync('inspector_id');
+      await SecureStore.deleteItemAsync('inspector_token');
       await SecureStore.deleteItemAsync('inspector_name');
     } catch (error) {
       console.error('Error removing credentials from SecureStore', error);
     } finally {
       setUserToken(null);
+      setInspectorId(null);
       setInspectorName(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ userToken, inspectorName, isLoading, signIn, signOut }}>
+    <AuthContext.Provider value={{ userToken, inspectorId, inspectorName, isLoading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

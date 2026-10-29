@@ -14,9 +14,10 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { API_URLS } from '../config';
 import { THEME } from '../theme';
+import { fetchWithTimeout } from '../utils';
 
 export default function ProjectListScreen({ navigation }) {
-  const { userToken, inspectorName } = useAuth();
+  const { userToken, inspectorId, inspectorName, signOut } = useAuth();
   const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +30,12 @@ export default function ProjectListScreen({ navigation }) {
         return;
       }
 
-      const response = await fetch(`${API_URLS.PROJECTS}${userToken}`);
+      const response = await fetchWithTimeout(API_URLS.PROJECTS, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
       let data = {};
       try {
         data = await response.json();
@@ -37,14 +43,20 @@ export default function ProjectListScreen({ navigation }) {
         console.warn('Non-JSON response from projects endpoint', parseErr);
       }
 
-      if (response.ok && data.status === 'success') {
-        setProjects(data.projects || []);
+      if (response.ok && data.success) {
+        setProjects((data.projects || []).map((project) => ({
+          ...project,
+          project_id: project.project_id ?? project.id,
+        })));
       } else {
+        if (response.status === 401) {
+          await signOut();
+        }
         Alert.alert('Fetch Error', data.message || `Failed to load projects (status ${response.status}).`);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
-      Alert.alert('Network Error', 'Could not connect to the backend server.');
+      Alert.alert('Assignment Sync Failed', error.message || 'Could not connect to the backend server.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -145,7 +157,7 @@ export default function ProjectListScreen({ navigation }) {
           <View>
             <Text style={styles.bannerSubtitle}>FIELD ASSIGNMENTS</Text>
             <Text style={styles.bannerInspector}>
-              {inspectorName || 'INSPECTOR'} • ID #{userToken || '---'}
+              {inspectorName || 'INSPECTOR'} • ID #{inspectorId || '---'}
             </Text>
           </View>
           <View style={styles.modeBadge}>

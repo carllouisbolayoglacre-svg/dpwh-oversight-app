@@ -33,12 +33,9 @@ function formatDate(value) {
   return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function DetailRow({ icon, label, value, last }) {
+function DetailRow({ label, value, last }) {
   return (
     <View style={[styles.detailRow, last && styles.detailRowLast]}>
-      <View style={styles.detailIcon}>
-        <MaterialCommunityIcons name={icon} size={21} color={THEME.colors.primary} />
-      </View>
       <View style={styles.detailCopy}>
         <Text style={styles.detailLabel}>{label}</Text>
         <Text style={styles.detailValue}>{value || 'Not specified'}</Text>
@@ -136,7 +133,7 @@ export default function PublicProjectDetailScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={23} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerMark}>
-          <MaterialCommunityIcons name="road-variant" size={23} color={THEME.colors.warningBorder} />
+          <Image source={require('../assets/dpwh-logo.png')} style={styles.headerLogo} resizeMode="contain" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>DPWH Oversight</Text>
@@ -178,12 +175,10 @@ export default function PublicProjectDetailScreen({ navigation, route }) {
           </View>
 
           <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={19} color={THEME.colors.primary} />
             <Text style={styles.locationText}>{location}</Text>
           </View>
 
           <View style={styles.noticeBox}>
-            <Ionicons name="information-circle" size={23} color="#FFFFFF" />
             <View style={styles.noticeCopy}>
               <Text style={styles.noticeTitle}>Approved public information only</Text>
               <Text style={styles.noticeText}>This page shows verified project details as officially recorded. Read-only.</Text>
@@ -193,16 +188,15 @@ export default function PublicProjectDetailScreen({ navigation, route }) {
           {!!errorMessage && <Text style={styles.inlineError}>{errorMessage}</Text>}
 
           <View style={styles.detailsPanel}>
-            <DetailRow icon="cash-multiple" label="Approved project budget" value={formatCurrency(project.budget)} />
-            <DetailRow icon="office-building-outline" label="Contractor" value={project.contractor} />
-            <DetailRow icon="calendar-range" label="Schedule" value={schedule} />
-            <DetailRow icon="map-marker-radius-outline" label="District" value={project.district} last />
+            <DetailRow label="Approved project budget" value={formatCurrency(project.budget)} />
+            <DetailRow label="Contractor" value={project.contractor} />
+            <DetailRow label="Schedule" value={schedule} />
+            <DetailRow label="District" value={project.district} last />
           </View>
 
           <View style={styles.progressSection}>
             <View style={styles.progressHeading}>
               <View style={styles.progressTitleRow}>
-                <MaterialCommunityIcons name="chart-bar" size={21} color={THEME.colors.primary} />
                 <Text style={styles.progressTitle}>Latest approved progress</Text>
               </View>
               <Text style={styles.progressValue}>{Math.round(progress)}%</Text>
@@ -219,6 +213,18 @@ export default function PublicProjectDetailScreen({ navigation, route }) {
               />
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.evidenceButton}
+            onPress={() => navigation.navigate('PublicProgressEvidence', { project })}
+            activeOpacity={0.84}
+          >
+            <View>
+              <Text style={styles.evidenceButtonTitle}>Progress & evidence</Text>
+              <Text style={styles.evidenceButtonText}>Approved timeline, location, and inspection photos</Text>
+            </View>
+            <Text style={styles.evidenceButtonArrow}>›</Text>
+          </TouchableOpacity>
 
           <View style={styles.referenceRow}>
             <Text style={styles.referenceLabel}>PROJECT TYPE</Text>
@@ -251,7 +257,8 @@ const styles = StyleSheet.create({
     borderBottomColor: THEME.colors.warningBorder,
   },
   backButton: { width: 42, height: 46, alignItems: 'center', justifyContent: 'center' },
-  headerMark: { width: 38, height: 38, borderRadius: 7, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 9 },
+  headerMark: { width: 38, height: 38, borderRadius: 7, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 9, padding: 3 },
+  headerLogo: { width: '100%', height: '100%' },
   headerCopy: { flex: 1 },
   headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
   headerSubtitle: { color: '#DCE8F5', fontSize: 11, fontWeight: '600', marginTop: 1 },
@@ -266,9 +273,9 @@ const styles = StyleSheet.create({
   projectName: { flex: 1, color: THEME.colors.textPrimary, fontSize: 23, fontWeight: '900', lineHeight: 29 },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginTop: 2 },
   statusText: { fontSize: 11, fontWeight: '900' },
-  locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10 },
+  locationRow: { marginTop: 10 },
   locationText: { flex: 1, color: THEME.colors.textSecondary, fontSize: 14, fontWeight: '600', lineHeight: 20 },
-  noticeBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: THEME.colors.primary, borderRadius: 10, padding: 13, marginTop: 18 },
+  noticeBox: { backgroundColor: THEME.colors.primary, borderRadius: 10, padding: 13, marginTop: 18 },
   noticeCopy: { flex: 1 },
   noticeTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   noticeText: { color: '#DCE8F5', fontSize: 11, fontWeight: '500', lineHeight: 16, marginTop: 2 },
@@ -276,7 +283,6 @@ const styles = StyleSheet.create({
   detailsPanel: { marginTop: 15, borderWidth: 1, borderColor: THEME.colors.borderLight, borderRadius: 10, overflow: 'hidden' },
   detailRow: { minHeight: 67, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, borderBottomWidth: 1, borderBottomColor: THEME.colors.borderLight },
   detailRowLast: { borderBottomWidth: 0 },
-  detailIcon: { width: 36, alignItems: 'flex-start' },
   detailCopy: { flex: 1, paddingVertical: 10 },
   detailLabel: { color: THEME.colors.textMuted, fontSize: 11, fontWeight: '700' },
   detailValue: { color: THEME.colors.textPrimary, fontSize: 14, fontWeight: '900', lineHeight: 19, marginTop: 3 },
@@ -287,6 +293,10 @@ const styles = StyleSheet.create({
   progressValue: { color: THEME.colors.textPrimary, fontSize: 17, fontWeight: '900' },
   progressTrack: { height: 11, borderRadius: 6, backgroundColor: '#D9E1EA', overflow: 'hidden', marginTop: 10 },
   progressFill: { height: '100%', borderRadius: 6 },
+  evidenceButton: { minHeight: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: THEME.colors.primary, borderRadius: 10, paddingHorizontal: 15, paddingVertical: 12, marginTop: 15 },
+  evidenceButtonTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  evidenceButtonText: { color: '#DCE8F5', fontSize: 11, fontWeight: '600', marginTop: 3 },
+  evidenceButtonArrow: { color: '#FFFFFF', fontSize: 30, fontWeight: '400', marginLeft: 8 },
   referenceRow: { alignItems: 'center', marginTop: 17 },
   referenceLabel: { color: THEME.colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   referenceValue: { color: THEME.colors.primary, fontSize: 13, fontWeight: '900', marginTop: 3 },

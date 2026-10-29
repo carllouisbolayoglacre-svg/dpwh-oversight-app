@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -241,7 +242,7 @@ export default function PublicBrowseScreen({ navigation }) {
       <View style={styles.brandHeader}>
         <View style={styles.brandRow}>
           <View style={styles.brandMark}>
-            <MaterialCommunityIcons name="road-variant" size={28} color={THEME.colors.warningBorder} />
+            <Image source={require('../assets/dpwh-logo.png')} style={styles.brandLogo} resizeMode="contain" />
           </View>
           <View style={styles.brandCopy}>
             <Text style={styles.brandTitle}>DPWH Oversight</Text>
@@ -323,7 +324,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     marginRight: 10,
+    padding: 3,
   },
+  brandLogo: { width: '100%', height: '100%' },
   brandCopy: { flex: 1 },
   brandTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '900', letterSpacing: 0.2 },
   brandSubtitle: { color: '#DCE8F5', fontSize: 12, fontWeight: '600', marginTop: 1 },

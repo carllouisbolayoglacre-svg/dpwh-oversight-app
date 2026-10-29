@@ -15,18 +15,16 @@ let networkWatcherSubscription = null;
 const syncEventListeners = new Set();
 
 /**
- * Checks whether the device currently possesses an active internet connection.
+ * Checks whether the device currently has an active network interface.
+ * Server reachability is determined by the actual API request. Android can
+ * report isInternetReachable=false on usable LANs that cannot pass its public
+ * internet validation check.
  * @returns {Promise<boolean>}
  */
 export async function isDeviceOnlineAsync() {
   try {
     const networkState = await Network.getNetworkStateAsync();
-    // isConnected: hardware radio is connected (Wi-Fi or cellular)
-    // isInternetReachable: actual connectivity to the internet
-    return Boolean(
-      networkState.isConnected && 
-      networkState.isInternetReachable !== false
-    );
+    return Boolean(networkState.isConnected);
   } catch (error) {
     console.warn('[SyncService] Error checking network status:', error);
     return false;
@@ -264,10 +262,7 @@ export function startNetworkSyncWatcher(onSyncComplete) {
 
   // Listen for real-time network status transitions
   networkWatcherSubscription = Network.addNetworkStateListener(async (state) => {
-    const isOnline = Boolean(
-      state.isConnected && 
-      state.isInternetReachable !== false
-    );
+    const isOnline = Boolean(state.isConnected);
 
     console.log(`[SyncService] Network state changed: isConnected=${state.isConnected}, isInternetReachable=${state.isInternetReachable}`);
 

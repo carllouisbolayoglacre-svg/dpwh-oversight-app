@@ -7,6 +7,7 @@ import {
   StyleSheet, 
   Alert, 
   ActivityIndicator, 
+  Image,
   KeyboardAvoidingView, 
   ScrollView, 
   Platform 
@@ -46,8 +47,12 @@ export default function LoginScreen({ navigation }) {
         console.warn('Server response was not JSON:', parseErr);
       }
 
-      if (response.ok && data.status === 'success') {
-        await signIn(data.inspector_id, data.name);
+      if (response.ok && data.success && data.token && data.inspector?.id) {
+        await signIn(
+          data.token,
+          data.inspector.id,
+          data.inspector.full_name || data.inspector.employee_id
+        );
       } else {
         Alert.alert(
           'Authentication Failed', 
@@ -84,7 +89,7 @@ export default function LoginScreen({ navigation }) {
           {/* Government / Department Field Emblem */}
           <View style={styles.badgeHeader}>
             <View style={styles.emblemContainer}>
-              <MaterialCommunityIcons name="shield-check" size={38} color={THEME.colors.primary} />
+              <Image source={require('../assets/dpwh-logo.png')} style={styles.emblemImage} resizeMode="contain" />
             </View>
             <Text style={styles.agencySubtitle}>REPUBLIC OF THE PHILIPPINES</Text>
             <Text style={styles.agencyTitle}>DPWH FIELD OVERSIGHT</Text>
@@ -212,7 +217,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: THEME.colors.primarySurface,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -242,6 +247,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  emblemImage: {
+    width: 52,
+    height: 52,
   },
   divider: {
     height: 1.5,

@@ -41,7 +41,7 @@ export default function ReportFormScreen({ route, navigation }) {
   const { project, photoUri, photos: routePhotos, locationData: routeLocationData } = route.params || {};
   const { userToken, inspectorId, inspectorName } = useAuth();
   const networkState = useNetworkState();
-  const isOnlineNow = Boolean(networkState.isConnected && networkState.isInternetReachable !== false);
+  const isOnlineNow = Boolean(networkState.isConnected);
 
   // Normalize photos array (supports both multi-photo array and legacy single photoUri)
   const initialPhotos = (routePhotos && routePhotos.length > 0)
@@ -244,8 +244,8 @@ export default function ReportFormScreen({ route, navigation }) {
       try {
         await saveOfflineReport(reportPayload);
         Alert.alert(
-          'Network Connection Lost',
-          'Offline mode: Report saved locally. It will sync automatically when connection is restored.',
+          'DPWH Server Unreachable',
+          'Your phone has a network connection, but it could not reach the DPWH server. The report was saved locally and will sync when the server becomes reachable.',
           [{ text: 'OK', onPress: () => navigation.popToTop() }]
         );
       } catch (fallbackError) {

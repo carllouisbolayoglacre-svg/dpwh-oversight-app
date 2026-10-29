@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { API_URLS } from '../config';
 import { THEME } from '../theme';
-import { calculateDistance } from '../utils';
+import { calculateDistance, fetchWithTimeout } from '../utils';
 
 const { width } = Dimensions.get('window');
 
@@ -75,11 +75,20 @@ export default function ProjectMapScreen({ route, navigation }) {
   const fetchAssignedProjects = async () => {
     try {
       if (userToken) {
-        const response = await fetch(`${API_URLS.PROJECTS}${userToken}`);
+        const response = await fetchWithTimeout(API_URLS.PROJECTS, {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+        });
         const data = await response.json();
 
-        if (response.ok && data.status === 'success' && Array.isArray(data.projects)) {
-          const validProjects = data.projects.filter((p) => {
+        if (response.ok && data.success && Array.isArray(data.projects)) {
+          const normalizedProjects = data.projects.map((project) => ({
+            ...project,
+            project_id: project.project_id ?? project.id,
+          }));
+          const validProjects = normalizedProjects.filter((p) => {
             const lat = parseFloat(p.latitude);
             const lon = parseFloat(p.longitude);
             return Number.isFinite(lat) && Number.isFinite(lon);

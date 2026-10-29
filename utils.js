@@ -43,6 +43,22 @@ export const validateGeofence = (currentLat, currentLon, projectLat, projectLon,
   return distance <= radius;
 };
 
+export const fetchWithTimeout = async (url, options = {}, timeoutMs = 10000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('The server did not respond in time. Check that Django is running and the phone is on the same network.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 /**
  * Executes a native multipart/form-data upload using XMLHttpRequest.
  * Bypasses Expo Winter fetch implementation which throws 'Unsupported FormDataPart implementation'
@@ -53,12 +69,15 @@ export const validateGeofence = (currentLat, currentLon, projectLat, projectLon,
  * @param {number} [timeoutMs=60000] - Request timeout in milliseconds
  * @returns {Promise<{status: number, data: any}>}
  */
-export const uploadMultipartAsync = (url, formData, timeoutMs = 60000) => {
+export const uploadMultipartAsync = (url, formData, timeoutMs = 60000, headers = {}) => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
     xhr.timeout = timeoutMs;
     xhr.setRequestHeader('Accept', 'application/json');
+    Object.entries(headers).forEach(([name, value]) => {
+      xhr.setRequestHeader(name, value);
+    });
 
     xhr.onload = () => {
       let responseData = {};

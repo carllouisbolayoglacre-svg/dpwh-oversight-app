@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { THEME } from '../theme';
 
 export default function ProfileScreen() {
-  const { userToken, inspectorName, signOut } = useAuth();
+  const { inspectorId, inspectorName, signOut } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -25,7 +25,7 @@ export default function ProfileScreen() {
   };
 
   const displayName = inspectorName || 'Field Inspector';
-  const displayId = userToken || 'N/A';
+  const displayId = inspectorId || 'N/A';
 
   return (
     <ScrollView 

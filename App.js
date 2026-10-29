@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform, AppState } from 'react-native';
+import { View, ActivityIndicator, Image, StyleSheet, Platform, AppState } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +11,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import PublicBrowseScreen from './screens/PublicBrowseScreen';
 import PublicProjectDetailScreen from './screens/PublicProjectDetailScreen';
+import PublicProgressEvidenceScreen from './screens/PublicProgressEvidenceScreen';
+import PublicVerificationFilesScreen from './screens/PublicVerificationFilesScreen';
 import ProjectListScreen from './screens/ProjectListScreen';
 import ProjectMapScreen from './screens/ProjectMapScreen';
 import CameraScreen from './screens/CameraScreen';
@@ -42,6 +44,11 @@ function MainTabNavigator() {
           fontSize: 18,
           letterSpacing: 0.5,
         },
+        headerLeft: () => (
+          <View style={styles.headerLogoFrame}>
+            <Image source={require('./assets/dpwh-logo.png')} style={styles.headerLogo} resizeMode="contain" />
+          </View>
+        ),
         tabBarActiveTintColor: THEME.colors.primary,
         tabBarInactiveTintColor: THEME.colors.textMuted,
         tabBarLabelStyle: {
@@ -130,6 +137,8 @@ function NavigationRoot() {
           <>
             <Stack.Screen name="PublicBrowse" component={PublicBrowseScreen} />
             <Stack.Screen name="PublicProjectDetail" component={PublicProjectDetailScreen} />
+            <Stack.Screen name="PublicProgressEvidence" component={PublicProgressEvidenceScreen} />
+            <Stack.Screen name="PublicVerificationFiles" component={PublicVerificationFilesScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
           </>
         ) : (
@@ -225,6 +234,18 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  headerLogoFrame: {
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    padding: 3,
+    marginRight: 9,
+  },
+  headerLogo: {
+    width: '100%',
+    height: '100%',
+  },
   center: { 
     flex: 1, 
     justifyContent: 'center', 
